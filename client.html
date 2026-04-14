@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report de Visites</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #fff; --surface2: #f0eeea;
+    --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.14);
+    --text: #1a1917; --text2: #6b6a66; --text3: #9b9a96;
+    --blue: #185FA5; --blue-bg: #E6F1FB; --blue-text: #0c4478;
+    --green: #3B6D11; --green-bg: #EAF3DE; --green-text: #27500a;
+    --red: #A32D2D; --red-bg: #FCEBEB; --red-text: #791F1F;
+    --amber: #854F0B; --amber-bg: #FAEEDA; --amber-text: #633806;
+    --gray-bg: #ececea; --gray-text: #5F5E5A;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1917; --surface: #242321; --surface2: #2e2c29;
+      --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
+      --text: #f0eeea; --text2: #a8a7a2; --text3: #6b6a66;
+      --blue-bg: #0c2d50; --blue-text: #85b7eb;
+      --green-bg: #173404; --green-text: #c0dd97;
+      --red-bg: #501313; --red-text: #f09595;
+      --amber-bg: #412402; --amber-text: #fac775;
+      --gray-bg: #2c2c2a; --gray-text: #b4b2a9;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+
+  /* Login */
+  .login-wrap { max-width: 380px; margin: 8rem auto; padding: 0 1.5rem; }
+  .login-logo { font-size: 13px; font-weight: 500; color: var(--text3); margin-bottom: 2rem; }
+  .login-title { font-size: 22px; font-weight: 500; margin-bottom: 0.5rem; }
+  .login-sub { font-size: 14px; color: var(--text2); margin-bottom: 2rem; }
+  label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 6px; }
+  input[type=text] {
+    width: 100%; font-size: 15px; padding: 10px 14px;
+    border-radius: var(--radius-sm); border: 0.5px solid var(--border2);
+    background: var(--surface); color: var(--text); outline: none; margin-bottom: 12px;
+  }
+  input:focus { border-color: var(--blue); }
+  .btn-primary { display: block; width: 100%; padding: 11px; border-radius: var(--radius-sm); font-size: 15px; font-weight: 500; background: var(--blue); color: #fff; border: none; cursor: pointer; }
+  .btn-primary:hover { opacity: 0.88; }
+  .msg { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-top: 12px; display: none; }
+  .msg.err { background: var(--red-bg); color: var(--red-text); display: block; }
+  .msg.loading { background: var(--blue-bg); color: var(--blue-text); display: block; }
+
+  /* Dashboard */
+  .topbar { background: var(--surface); border-bottom: 0.5px solid var(--border2); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .topbar-title { font-size: 15px; font-weight: 500; }
+  .topbar-meta { font-size: 12px; color: var(--text3); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .section-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 12px; }
+
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 2rem; }
+  @media(max-width:700px){ .metrics { grid-template-columns: repeat(2,1fr); } }
+  .metric { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+  .metric-value { font-size: 28px; font-weight: 500; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 2rem; }
+  @media(max-width:700px){ .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .chart-title { font-size: 13px; font-weight: 500; margin-bottom: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .leg-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text2); }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  .table-wrap { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 2rem; }
+  .search-bar { padding: 12px 14px; border-bottom: 0.5px solid var(--border); }
+  .search-bar input { width: 100%; max-width: 340px; font-size: 13px; padding: 7px 12px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); outline: none; }
+  .search-bar input:focus { border-color: var(--blue); }
+  .table-head { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1.8fr 1.2fr; padding: 10px 14px; background: var(--surface2); font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .table-row { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1.8fr 1.2fr; padding: 10px 14px; border-top: 0.5px solid var(--border); font-size: 13px; align-items: center; cursor: pointer; }
+  .table-row:hover { background: var(--surface2); }
+  .cell-trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .cell-sm { font-size: 11px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media(max-width:700px){
+    .table-head { grid-template-columns: 1fr 1fr; }
+    .table-row { grid-template-columns: 1fr 1fr; }
+    .table-head > *:nth-child(n+3),.table-row > *:nth-child(n+3) { display: none; }
+  }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .b-proc { background: var(--blue-bg); color: var(--blue-text); }
+  .b-fin  { background: var(--green-bg); color: var(--green-text); }
+  .b-pos  { background: var(--green-bg); color: var(--green-text); }
+  .b-neg  { background: var(--red-bg); color: var(--red-text); }
+  .b-fut  { background: var(--amber-bg); color: var(--amber-text); }
+  .b-neu  { background: var(--gray-bg); color: var(--gray-text); }
+
+  .pagination { display: flex; gap: 8px; justify-content: center; align-items: center; padding: 14px; font-size: 13px; color: var(--text2); border-top: 0.5px solid var(--border); }
+  .pagination button { padding: 5px 14px; font-size: 13px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; }
+  .pagination button:hover:not(:disabled) { background: var(--surface2); }
+  .pagination button:disabled { opacity: 0.35; cursor: default; }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 1.5rem; max-width: 520px; width: 100%; max-height: 80vh; overflow-y: auto; position: relative; }
+  .modal-close { position: absolute; top: 12px; right: 14px; font-size: 18px; cursor: pointer; color: var(--text3); background: none; border: none; }
+  .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 1rem; padding-right: 2rem; }
+  .modal-row { display: flex; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+  .modal-key { color: var(--text3); min-width: 90px; flex-shrink: 0; }
+  .modal-comment { margin-top: 12px; padding: 10px 12px; background: var(--surface2); border-radius: var(--radius-sm); font-size: 12px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+
+  .empty { text-align: center; padding: 3rem; color: var(--text3); font-size: 14px; }
+  .filters-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; align-items: center; }
+  .filter-label { font-size: 12px; color: var(--text2); }
+  select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); outline: none; cursor: pointer; }
+  select:focus { border-color: var(--blue); }
+  .btn-reset { font-size: 12px; color: var(--text3); background: none; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 6px 12px; cursor: pointer; }
+  .btn-reset:hover { background: var(--surface2); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-logo">Report Visites · Pivote Produccions</div>
+    <div class="login-title">Accedeix al teu informe</div>
+    <div class="login-sub">Introdueix el NIF o CIF de la teva empresa per veure el report setmanal.</div>
+    <label>NIF / CIF</label>
+    <input type="text" id="nif-input" placeholder="ex: B12345678" style="text-transform:uppercase;font-size:18px;letter-spacing:0.05em" onkeydown="if(event.key==='Enter')doAccess()">
+    <button class="btn-primary" onclick="doAccess()">Veure el meu informe</button>
+    <div class="msg" id="access-msg"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard-screen" style="display:none">
+  <div class="topbar">
+    <div class="topbar-title" id="dash-title">Report de Visites</div>
+    <div class="topbar-meta" id="dash-date"></div>
+  </div>
+  <div class="main">
+
+    <div class="section-title" style="margin-bottom:12px">resum executiu</div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total registres</div><div class="metric-value" id="m-total">—</div></div>
+      <div class="metric"><div class="metric-label">En procés</div><div class="metric-value" id="m-proc" style="color:var(--blue)">—</div><div class="metric-sub" id="m-proc-pct"></div></div>
+      <div class="metric"><div class="metric-label">Finalitzats</div><div class="metric-value" id="m-fin" style="color:var(--green)">—</div><div class="metric-sub" id="m-fin-pct"></div></div>
+      <div class="metric"><div class="metric-label">Visites concertades</div><div class="metric-value" id="m-visit" style="color:var(--amber)">—</div><div class="metric-sub" id="m-visit-pct"></div></div>
+    </div>
+
+    <div class="section-title">filtres</div>
+    <div class="filters-row">
+      <span class="filter-label">Fase:</span>
+      <select id="filt-fase" onchange="applyFilters()">
+        <option value="">Totes</option>
+        <option value="Proceso">En procés</option>
+        <option value="Finalizado">Finalitzat</option>
+      </select>
+      <span class="filter-label">Província:</span>
+      <select id="filt-prov" onchange="applyFilters()"><option value="">Totes</option></select>
+      <span class="filter-label">Status:</span>
+      <select id="filt-status" onchange="applyFilters()"><option value="">Tots</option></select>
+      <button class="btn-reset" onclick="resetFilters()">Netejar</button>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Distribució per status</div>
+        <div style="position:relative;height:240px"><canvas id="chartStatus" role="img" aria-label="Barres per status"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Resultats finals</div>
+        <div style="position:relative;height:240px"><canvas id="chartFinals" role="img" aria-label="Barres resultats finals"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Per província</div>
+        <div class="legend" id="leg-prov"></div>
+        <div style="position:relative;height:200px"><canvas id="chartProv" role="img" aria-label="Barres per província"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Tipus de BBDD</div>
+        <div class="legend" id="leg-bbdd"></div>
+        <div style="position:relative;height:200px"><canvas id="chartBBDD" role="img" aria-label="Donut tipus BBDD"></canvas></div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">registres (<span id="count-label">—</span>)</div>
+    </div>
+    <div class="table-wrap">
+      <div class="search-bar"><input type="text" id="search" placeholder="Cercar empresa, contacte, ciutat..." oninput="applyFilters()"></div>
+      <div class="table-head"><div>Empresa</div><div>Fase</div><div>Província</div><div>Status</div><div>Final</div></div>
+      <div id="table-body"></div>
+      <div class="pagination">
+        <button id="btn-prev" onclick="changePage(-1)">← Anterior</button>
+        <span id="page-info"></span>
+        <button id="btn-next" onclick="changePage(1)">Següent →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal" onclick="if(event.target.id==='modal')document.getElementById('modal').classList.remove('open')">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">✕</button>
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jkmaratxaueibpvlxfyl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprbWFyYXR4YXVlaWJwdmx4ZnlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjI1NzgsImV4cCI6MjA5MTczODU3OH0.7FbBOGxYwsXP3XQouwq1DAyqXmp9gWxPqXJ_q7RhxVg';
+const COLORS = ['#378ADD','#1D9E75','#BA7517','#D4537E','#639922','#888780','#D85A30','#534AB7','#0F6E56','#993556'];
+
+let DATA = [], filtered = [], charts = {}, page = 0;
+const PAGE_SIZE = 15;
+
+// Auto-login via URL param
+const urlNif = new URLSearchParams(location.search).get('nif');
+if (urlNif) { document.getElementById('nif-input').value = urlNif.toUpperCase(); doAccess(); }
+
+async function doAccess() {
+  const nif = document.getElementById('nif-input').value.trim().toUpperCase();
+  if (!nif) { showMsg('access-msg', 'Cal introduir el NIF o CIF.', 'err'); return; }
+  showMsg('access-msg', 'Cercant...', 'loading');
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?nif=eq.${encodeURIComponent(nif)}&select=nom_client,dades,actualitzat_at`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  const rows = await res.json();
+  if (!rows.length) { showMsg('access-msg', 'No hem trobat cap informe per a aquest NIF/CIF.', 'err'); return; }
+
+  const record = rows[0];
+  DATA = record.dades;
+  const date = new Date(record.actualitzat_at).toLocaleDateString('ca-ES', { day:'2-digit', month:'long', year:'numeric' });
+  document.getElementById('dash-title').textContent = record.nom_client || nif;
+  document.getElementById('dash-date').textContent = 'Actualitzat: ' + date;
+
+  populateSelects();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard-screen').style.display = 'block';
+  applyFilters();
+}
+
+function populateSelects() {
+  const add = (id, vals) => { const el = document.getElementById(id); vals.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o); }); };
+  add('filt-prov', [...new Set(DATA.map(r=>r.pr).filter(Boolean))].sort());
+  add('filt-status', [...new Set(DATA.map(r=>r.st).filter(Boolean))].sort());
+}
+
+function applyFilters() {
+  const fase = document.getElementById('filt-fase').value;
+  const prov = document.getElementById('filt-prov').value;
+  const status = document.getElementById('filt-status').value;
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  filtered = DATA.filter(r =>
+    (!fase || r.fa===fase) && (!prov || r.pr===prov) && (!status || r.st===status) &&
+    (!q || r.e.toLowerCase().includes(q) || r.cn.toLowerCase().includes(q) || r.ci.toLowerCase().includes(q))
+  );
+  page = 0;
+  updateMetrics(); renderCharts(); renderTable();
+}
+
+function resetFilters() {
+  ['filt-fase','filt-prov','filt-status'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('search').value='';
+  applyFilters();
+}
+
+function updateMetrics() {
+  const t = filtered.length, proc = filtered.filter(r=>r.fa==='Proceso').length;
+  const fin = filtered.filter(r=>r.fa==='Finalizado').length;
+  const visit = filtered.filter(r=>r.fi&&r.fi.includes('concertada')).length;
+  document.getElementById('m-total').textContent = t;
+  document.getElementById('m-proc').textContent = proc;
+  document.getElementById('m-proc-pct').textContent = t ? Math.round(proc/t*100)+'% del total' : '';
+  document.getElementById('m-fin').textContent = fin;
+  document.getElementById('m-fin-pct').textContent = t ? Math.round(fin/t*100)+'% del total' : '';
+  document.getElementById('m-visit').textContent = visit;
+  document.getElementById('m-visit-pct').textContent = t ? Math.round(visit/t*100)+'% conversió' : '';
+  document.getElementById('count-label').textContent = t;
+}
+
+function countBy(arr, key) { const m={}; arr.forEach(r=>{const v=r[key];if(v)m[v]=(m[v]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1]); }
+
+function makeBar(id, labels, data, colors, horizontal) {
+  const ctx = document.getElementById(id);
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:4, borderWidth:0 }] },
+    options:{ indexAxis:horizontal?'y':'x', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.parsed[horizontal?'x':'y']} registres`}} },
+      scales:{ x:{grid:{color:'rgba(128,128,128,0.08)'},ticks:{color:'#888780',font:{size:10},maxRotation:horizontal?0:35,autoSkip:false}}, y:{grid:{display:!horizontal},ticks:{color:'#888780',font:{size:10}}} }
+    }
+  });
+}
+function makeDoughnut(id, labels, data, colors) {
+  const ctx = document.getElementById(id);
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:2, borderColor:'transparent' }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.parsed} (${Math.round(c.parsed/data.reduce((a,b)=>a+b,0)*100)}%)`}} }
+    }
+  });
+}
+function makeLeg(id, entries, colors) {
+  document.getElementById(id).innerHTML = entries.map(([l,v],i)=>
+    `<div class="leg-item"><span class="leg-dot" style="background:${colors[i%colors.length]}"></span>${l.length>22?l.slice(0,22)+'…':l} (${v})</div>`).join('');
+}
+
+function renderCharts() {
+  const st = countBy(filtered,'st').slice(0,10);
+  makeBar('chartStatus', st.map(([l])=>l.length>22?l.slice(0,22)+'…':l), st.map(([,v])=>v), COLORS, true);
+  const fi = countBy(filtered.filter(r=>r.fi),'fi').slice(0,8);
+  makeBar('chartFinals', fi.map(([l])=>l.length>18?l.slice(0,18)+'…':l), fi.map(([,v])=>v), COLORS.slice(2), false);
+  const pr = countBy(filtered,'pr');
+  makeBar('chartProv', pr.map(([l])=>l), pr.map(([,v])=>v), COLORS, false);
+  makeLeg('leg-prov', pr, COLORS);
+  const bb = countBy(filtered,'bb');
+  makeDoughnut('chartBBDD', bb.map(([l])=>l), bb.map(([,v])=>v), ['#378ADD','#1D9E75']);
+  makeLeg('leg-bbdd', bb, ['#378ADD','#1D9E75']);
+}
+
+function faseBadge(f) { return f==='Proceso'?'<span class="badge b-proc">En procés</span>':'<span class="badge b-fin">Finalitzat</span>'; }
+function finalBadge(f) {
+  if(!f) return '<span class="badge b-neu">—</span>';
+  const s=f.slice(0,18)+(f.length>18?'…':'');
+  if(/concertada|Won|confirmado|contactada/i.test(f)) return `<span class="badge b-pos">${s}</span>`;
+  if(/nterés|target|correcto|Extinguida|no interes/i.test(f)) return `<span class="badge b-neg">${s}</span>`;
+  if(/[Ff]uturo|reagendar/i.test(f)) return `<span class="badge b-fut">${s}</span>`;
+  return `<span class="badge b-neu">${s}</span>`;
+}
+
+function renderTable() {
+  const slice = filtered.slice(page*PAGE_SIZE, (page+1)*PAGE_SIZE);
+  const body = document.getElementById('table-body');
+  body.innerHTML = slice.length ? slice.map((r,i)=>`
+    <div class="table-row" onclick="openModal(${page*PAGE_SIZE+i})">
+      <div class="cell-trunc">${r.e}</div>
+      <div>${faseBadge(r.fa)}</div>
+      <div class="cell-sm">${r.pr}${r.ci?' · '+r.ci:''}</div>
+      <div class="cell-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.st}</div>
+      <div>${finalBadge(r.fi)}</div>
+    </div>`).join('') : '<div class="empty">Cap resultat per als filtres seleccionats.</div>';
+  document.getElementById('page-info').textContent = `${page+1} / ${Math.max(1,Math.ceil(filtered.length/PAGE_SIZE))}`;
+  document.getElementById('btn-prev').disabled = page===0;
+  document.getElementById('btn-next').disabled = (page+1)*PAGE_SIZE>=filtered.length;
+}
+function changePage(dir) { page+=dir; renderTable(); document.querySelector('.table-wrap').scrollIntoView({behavior:'smooth',block:'start'}); }
+
+function openModal(idx) {
+  const r = filtered[idx];
+  document.getElementById('modal-title').textContent = r.e;
+  document.getElementById('modal-content').innerHTML = [
+    ['Fase', faseBadge(r.fa)],['Status',r.st],['Resultat',finalBadge(r.fi)||'—'],
+    ['Motiu',r.mi||'—'],['Província',r.pr],['Ciutat',r.ci||'—'],
+    ['BBDD',r.bb],['Contacte',r.cn||'—'],['Càrrec',r.ca||'—'],
+  ].map(([k,v])=>`<div class="modal-row"><span class="modal-key">${k}</span><span class="modal-val">${v}</span></div>`).join('')
+  + (r.co?`<div class="modal-comment">${r.co}</div>`:'');
+  document.getElementById('modal').classList.add('open');
+}
+
+function showMsg(id, text, type) { const el=document.getElementById(id); el.textContent=text; el.className='msg '+type; }
+</script>
+</body>
+</html>

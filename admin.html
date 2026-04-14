@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin · Report Visites</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #fff; --surface2: #f0eeea;
+    --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.14);
+    --text: #1a1917; --text2: #6b6a66; --text3: #9b9a96;
+    --blue: #185FA5; --blue-bg: #E6F1FB; --blue-text: #0c4478;
+    --green: #3B6D11; --green-bg: #EAF3DE; --green-text: #27500a;
+    --red: #A32D2D; --red-bg: #FCEBEB; --red-text: #791F1F;
+    --amber: #854F0B; --amber-bg: #FAEEDA; --amber-text: #633806;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+
+  .topbar { background: var(--surface); border-bottom: 0.5px solid var(--border2); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .topbar-title { font-size: 15px; font-weight: 500; }
+  .badge-admin { font-size: 11px; background: var(--amber-bg); color: var(--amber-text); padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+
+  .main { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .section-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 12px; }
+
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+
+  label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 6px; }
+  input[type=text], input[type=password] {
+    width: 100%; font-size: 14px; padding: 8px 12px;
+    border-radius: var(--radius-sm); border: 0.5px solid var(--border2);
+    background: var(--surface); color: var(--text); outline: none; margin-bottom: 12px;
+  }
+  input:focus { border-color: var(--blue); }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border2); border-radius: var(--radius);
+    padding: 2.5rem 1rem; text-align: center; cursor: pointer;
+    color: var(--text3); font-size: 14px; transition: all 0.15s; margin-bottom: 12px;
+  }
+  .drop-zone:hover, .drop-zone.over { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+  .drop-zone input { display: none; }
+
+  .btn { display: inline-block; padding: 9px 20px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+  .btn-primary { background: var(--blue); color: #fff; width: 100%; text-align: center; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+  .msg { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-top: 12px; display: none; }
+  .msg.ok { background: var(--green-bg); color: var(--green-text); display: block; }
+  .msg.err { background: var(--red-bg); color: var(--red-text); display: block; }
+  .msg.loading { background: var(--blue-bg); color: var(--blue-text); display: block; }
+
+  .clients-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .clients-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); padding: 8px 12px; background: var(--surface2); }
+  .clients-table td { padding: 10px 12px; border-top: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+  .clients-table tr:hover td { background: var(--surface2); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .b-ok { background: var(--green-bg); color: var(--green-text); }
+  .btn-link { background: none; border: none; color: var(--blue); font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; }
+  .btn-del { background: none; border: none; color: var(--red); font-size: 12px; cursor: pointer; padding: 0; }
+
+  .login-wrap { max-width: 360px; margin: 5rem auto; }
+  .login-title { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; }
+
+  .preview-info { font-size: 12px; color: var(--text2); margin-bottom: 12px; padding: 8px 12px; background: var(--surface2); border-radius: var(--radius-sm); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="padding: 2rem 1.5rem;">
+  <div class="login-wrap">
+    <div class="login-title">Accés d'administració</div>
+    <label>Contrasenya</label>
+    <input type="password" id="admin-pass" placeholder="Contrasenya admin" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+    <div class="msg" id="login-msg"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none">
+  <div class="topbar">
+    <div class="topbar-title">Report Visites · Administració</div>
+    <span class="badge-admin">Admin</span>
+  </div>
+
+  <div class="main">
+
+    <div class="section-title" style="margin-bottom:12px">pujar nou report</div>
+    <div class="card">
+      <label>NIF / CIF del client</label>
+      <input type="text" id="nif" placeholder="ex: B12345678" style="text-transform:uppercase">
+      <label>Nom del client</label>
+      <input type="text" id="nom" placeholder="ex: Empresa Exemple S.L.">
+      <label>Fitxer Excel (.xlsx)</label>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="file-input" accept=".xlsx,.xls" onchange="onFileSelect(event)">
+        <span id="drop-text">Arrossega l'Excel aquí o clica per seleccionar</span>
+      </div>
+      <div class="preview-info" id="preview-info" style="display:none"></div>
+      <button class="btn btn-primary" id="btn-upload" onclick="uploadReport()" disabled>Pujar report</button>
+      <div class="msg" id="upload-msg"></div>
+    </div>
+
+    <div class="section-title">clients registrats</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="clients-table">
+        <thead><tr><th>NIF / CIF</th><th>Client</th><th>Registres</th><th>Actualitzat</th><th>Enllaç</th><th></th></tr></thead>
+        <tbody id="clients-list"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:2rem">Carregant...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jkmaratxaueibpvlxfyl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprbWFyYXR4YXVlaWJwdmx4ZnlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjI1NzgsImV4cCI6MjA5MTczODU3OH0.7FbBOGxYwsXP3XQouwq1DAyqXmp9gWxPqXJ_q7RhxVg';
+const ADMIN_PASS = 'pivote2026';
+
+let selectedFile = null;
+let parsedData = null;
+
+function doLogin() {
+  const pass = document.getElementById('admin-pass').value;
+  if (pass === ADMIN_PASS) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    loadClients();
+  } else {
+    showMsg('login-msg', 'Contrasenya incorrecta.', 'err');
+  }
+}
+
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('over'); }
+function onDragLeave() { document.getElementById('drop-zone').classList.remove('over'); }
+function onDrop(e) { e.preventDefault(); onDragLeave(); const f = e.dataTransfer.files[0]; if(f) processFile(f); }
+function onFileSelect(e) { const f = e.target.files[0]; if(f) processFile(f); }
+
+function processFile(file) {
+  selectedFile = file;
+  document.getElementById('drop-text').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const ws = wb.Sheets['BBDD'];
+      if (!ws) { showMsg('upload-msg', "No s'ha trobat la pestanya 'BBDD' a l'Excel.", 'err'); return; }
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      parsedData = rows.map(r => ({
+        e: String(r['Nombre Empresa'] || '').slice(0, 80),
+        fa: String(r['Fase'] || ''),
+        st: String(r['Status'] || ''),
+        fi: String(r['Finales'] || ''),
+        mi: String(r['Motivos no interes'] || ''),
+        pr: String(r['Provincia'] || ''),
+        bb: String(r['BBDD'] || ''),
+        co: String(r['Comentario para cliente'] || '').slice(0, 300),
+        cn: String(r['Contacto 1'] || ''),
+        ca: String(r['Cargo 1'] || ''),
+        ci: String(r['Ciudad'] || ''),
+      }));
+      document.getElementById('preview-info').style.display = 'block';
+      document.getElementById('preview-info').textContent = `✓ Fitxer llegit correctament: ${parsedData.length} registres trobats.`;
+      document.getElementById('btn-upload').disabled = false;
+    } catch(err) {
+      showMsg('upload-msg', "Error llegint l'Excel: " + err.message, 'err');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+async function uploadReport() {
+  const nif = document.getElementById('nif').value.trim().toUpperCase();
+  const nom = document.getElementById('nom').value.trim();
+  if (!nif) { showMsg('upload-msg', 'Cal introduir el NIF/CIF del client.', 'err'); return; }
+  if (!parsedData) { showMsg('upload-msg', "Cal seleccionar un fitxer Excel.", 'err'); return; }
+
+  showMsg('upload-msg', 'Pujant dades...', 'loading');
+  document.getElementById('btn-upload').disabled = true;
+
+  const payload = { nif, nom_client: nom, dades: parsedData, actualitzat_at: new Date().toISOString() };
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (res.ok || res.status === 201 || res.status === 200) {
+    showMsg('upload-msg', `✓ Report de "${nom || nif}" pujat correctament!`, 'ok');
+    document.getElementById('nif').value = '';
+    document.getElementById('nom').value = '';
+    document.getElementById('drop-text').textContent = 'Arrossega l\'Excel aquí o clica per seleccionar';
+    document.getElementById('preview-info').style.display = 'none';
+    parsedData = null; selectedFile = null;
+    document.getElementById('btn-upload').disabled = true;
+    loadClients();
+  } else {
+    const err = await res.json();
+    showMsg('upload-msg', 'Error: ' + (err.message || JSON.stringify(err)), 'err');
+    document.getElementById('btn-upload').disabled = false;
+  }
+}
+
+async function loadClients() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=nif,nom_client,dades,actualitzat_at&order=actualitzat_at.desc`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  const data = await res.json();
+  const tbody = document.getElementById('clients-list');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:2rem">Cap client registrat encara.</td></tr>'; return; }
+  tbody.innerHTML = data.map(r => {
+    const date = new Date(r.actualitzat_at).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const count = Array.isArray(r.dades) ? r.dades.length : '—';
+    const link = `${location.origin}${location.pathname.replace('admin.html','client.html')}?nif=${r.nif}`;
+    return `<tr>
+      <td><strong>${r.nif}</strong></td>
+      <td>${r.nom_client || '—'}</td>
+      <td><span class="badge b-ok">${count} reg.</span></td>
+      <td style="color:var(--text3);font-size:12px">${date}</td>
+      <td><button class="btn-link" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Enllaç copiat!'))">Copiar enllaç</button></td>
+      <td><button class="btn-del" onclick="deleteClient('${r.nif}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteClient(nif) {
+  if (!confirm(`Eliminar el client ${nif}? Aquesta acció no es pot desfer.`)) return;
+  await fetch(`${SUPABASE_URL}/rest/v1/reports?nif=eq.${nif}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  loadClients();
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+</script>
+</body>
+</html>
